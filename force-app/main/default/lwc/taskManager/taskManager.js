@@ -24,7 +24,7 @@ export default class TaskManager extends NavigationMixin(LightningElement) {
         'Later': []
     };
 
-    activeSections = ['Overdue', 'Today', 'Tomorrow', 'This Week'];
+    @track activeSections = ['Overdue', 'Today', 'Tomorrow', 'This Week'];
     isLoading = true;
     error = null;
     wiredTasksResult;
@@ -100,6 +100,10 @@ export default class TaskManager extends NavigationMixin(LightningElement) {
         }
     }
 
+    handleSectionToggle(event) {
+        this.activeSections = event.detail.openSections;
+    }
+
     handleSubjectClick(event) {
         const taskId = event.currentTarget.dataset.id;
         this[NavigationMixin.Navigate]({
@@ -113,7 +117,8 @@ export default class TaskManager extends NavigationMixin(LightningElement) {
     }
 
     async handleCompleteTask(event) {
-        const taskId = event.currentTarget.dataset.id;
+        const taskId = event.target.name || event.currentTarget.dataset?.id || event.target.dataset?.id;
+        if (!taskId) return;
 
         // Snapshot current state for rollback if server call fails
         const previousState = JSON.parse(JSON.stringify(this.groupedTasks));
@@ -121,10 +126,10 @@ export default class TaskManager extends NavigationMixin(LightningElement) {
 
         // Optimistic UI update: remove task immediately
         SECTION_ORDER.forEach((section) => {
-            const index = this.groupedTasks[section].findIndex((t) => t.Id === taskId);
+            const index = (this.groupedTasks[section] || []).findIndex((t) => t.Id === taskId);
             if (index !== -1) {
                 taskSubject = this.groupedTasks[section][index].Subject;
-                this.groupedTasks[section].splice(index, 1);
+                this.groupedTasks[section] = this.groupedTasks[section].filter((t) => t.Id !== taskId);
             }
         });
         this.groupedTasks = { ...this.groupedTasks };
@@ -133,8 +138,7 @@ export default class TaskManager extends NavigationMixin(LightningElement) {
             const isSuccess = await closeTask({ taskId });
             if (isSuccess) {
                 this.showToast('Task Completed', `"${taskSubject}" marked as completed.`, 'success');
-                // Refresh Apex cache in background
-                refreshApex(this.wiredTasksResult);
+                await refreshApex(this.wiredTasksResult);
             } else {
                 // Rollback UI
                 this.groupedTasks = previousState;
@@ -148,17 +152,20 @@ export default class TaskManager extends NavigationMixin(LightningElement) {
     }
 
     async handleDeferTask(event) {
-        const taskId = event.currentTarget.dataset.id;
+        const taskId = event.target.name || event.currentTarget.dataset?.id || event.target.dataset?.id;
+        if (!taskId) return;
 
         // Snapshot current state for rollback if server call fails
         const previousState = JSON.parse(JSON.stringify(this.groupedTasks));
         let foundTask = null;
 
-        // Optimistic UI update: move task to Tomorrow immediately
+        // Find and remove task from its current section
         SECTION_ORDER.forEach((section) => {
-            const index = this.groupedTasks[section].findIndex((t) => t.Id === taskId);
+            const tasks = this.groupedTasks[section] || [];
+            const index = tasks.findIndex((t) => t.Id === taskId);
             if (index !== -1) {
-                [foundTask] = this.groupedTasks[section].splice(index, 1);
+                foundTask = { ...tasks[index] };
+                this.groupedTasks[section] = tasks.filter((t) => t.Id !== taskId);
             }
         });
 
@@ -166,15 +173,21 @@ export default class TaskManager extends NavigationMixin(LightningElement) {
             // Update activity date representation for UI
             const tomorrowDate = this.calculateNextBusinessDate();
             foundTask.ActivityDate = tomorrowDate;
-            this.groupedTasks['Tomorrow'].push(foundTask);
+
+            // Add to Tomorrow with new immutable array reference
+            this.groupedTasks['Tomorrow'] = [...(this.groupedTasks['Tomorrow'] || []), foundTask];
             this.groupedTasks = { ...this.groupedTasks };
+
+            // Ensure "Tomorrow" accordion is expanded so user sees the task arrive
+            if (!this.activeSections.includes('Tomorrow')) {
+                this.activeSections = [...this.activeSections, 'Tomorrow'];
+            }
 
             try {
                 const isSuccess = await deferTask({ taskId });
                 if (isSuccess) {
                     this.showToast('Task Deferred', `"${foundTask.Subject}" moved to Tomorrow.`, 'success');
-                    // Refresh Apex cache in background
-                    refreshApex(this.wiredTasksResult);
+                    await refreshApex(this.wiredTasksResult);
                 } else {
                     // Rollback UI
                     this.groupedTasks = previousState;
@@ -198,7 +211,12 @@ export default class TaskManager extends NavigationMixin(LightningElement) {
             addDays = 2; // Saturday -> Monday
         }
         d.setDate(d.getDate() + addDays);
-        return d.toISOString().split('T')[0];
+
+        // Format local date YYYY-MM-DD without UTC timezone offset issues
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     handleRefresh() {
