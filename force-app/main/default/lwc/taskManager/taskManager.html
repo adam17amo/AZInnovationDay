@@ -30,7 +30,8 @@
             <!-- Accordion -->
             <lightning-accordion
                 allow-multiple-sections-open
-                active-section-name={activeSections}>
+                active-section-name={activeSections}
+                onsectiontoggle={handleSectionToggle}>
                 
                 <template for:each={sections} for:item="section">
                     <lightning-accordion-section
@@ -81,7 +82,8 @@
                                                                 value={task.ActivityDate}
                                                                 year="numeric"
                                                                 month="short"
-                                                                day="2-digit">
+                                                                day="2-digit"
+                                                                time-zone="UTC">
                                                             </lightning-formatted-date-time>
                                                         </span>
                                                     </template>
@@ -99,6 +101,7 @@
                                                     title="Defer to Tomorrow"
                                                     variant="border-filled"
                                                     size="small"
+                                                    name={task.Id}
                                                     data-id={task.Id}
                                                     onclick={handleDeferTask}>
                                                 </lightning-button-icon>
@@ -109,6 +112,7 @@
                                                     variant="border-filled"
                                                     size="small"
                                                     class="slds-m-left_xx-small"
+                                                    name={task.Id}
                                                     data-id={task.Id}
                                                     onclick={handleCompleteTask}>
                                                 </lightning-button-icon>
