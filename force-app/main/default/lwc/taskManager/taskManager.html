@@ -1,0 +1,141 @@
+<template>
+    <lightning-card title="My Tasks" icon-name="standard:task">
+        <div slot="actions" class="slds-grid slds-grid_vertical-align-center">
+            <lightning-button-icon
+                icon-name="utility:refresh"
+                variant="border-filled"
+                size="small"
+                alternative-text="Refresh Tasks"
+                title="Refresh Tasks"
+                class="slds-m-right_x-small"
+                onclick={handleRefresh}>
+            </lightning-button-icon>
+            <lightning-badge label={totalOpenTasksLabel} class="slds-badge_lightest"></lightning-badge>
+        </div>
+
+        <div class="slds-is-relative slds-p-horizontal_small slds-p-bottom_small">
+            <!-- Loading Spinner -->
+            <template lwc:if={isLoading}>
+                <lightning-spinner alternative-text="Loading tasks..." size="small"></lightning-spinner>
+            </template>
+
+            <!-- Error Notification -->
+            <template lwc:if={error}>
+                <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error slds-m-bottom_small" role="alert">
+                    <span class="slds-assistive-text">error</span>
+                    <h2>{errorMessage}</h2>
+                </div>
+            </template>
+
+            <!-- Accordion -->
+            <lightning-accordion
+                allow-multiple-sections-open
+                active-section-name={activeSections}>
+                
+                <template for:each={sections} for:item="section">
+                    <lightning-accordion-section
+                        key={section.name}
+                        name={section.name}
+                        label={section.label}>
+                        
+                        <!-- When Section Has Tasks -->
+                        <template lwc:if={section.hasTasks}>
+                            <ul class="slds-has-dividers_bottom-space">
+                                <template for:each={section.tasks} for:item="task">
+                                    <li key={task.Id} class="slds-item slds-p-vertical_x-small task-row">
+                                        <div class="slds-grid slds-grid_vertical-align-center slds-wrap">
+                                            <!-- Priority Indicator & Subject -->
+                                            <div class="slds-col slds-size_1-1 slds-medium-size_6-12 slds-truncate">
+                                                <div class="slds-media slds-media_center">
+                                                    <div class="slds-media__figure slds-m-right_x-small">
+                                                        <span class={task.priorityBadgeClass}>
+                                                            {task.Priority}
+                                                        </span>
+                                                    </div>
+                                                    <div class="slds-media__body slds-truncate">
+                                                        <a
+                                                            href="javascript:void(0);"
+                                                            data-id={task.Id}
+                                                            onclick={handleSubjectClick}
+                                                            class="slds-text-link_reset slds-text-heading_small slds-text-color_default task-subject"
+                                                            title={task.Subject}>
+                                                            {task.Subject}
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Due Date -->
+                                            <div class="slds-col slds-size_1-1 slds-medium-size_4-12 slds-p-vertical_xx-small slds-medium-p-vertical_none">
+                                                <div class="slds-grid slds-grid_vertical-align-center slds-text-body_small slds-text-color_weak">
+                                                    <lightning-icon
+                                                        icon-name="utility:event"
+                                                        size="x-small"
+                                                        class="slds-m-right_xx-small"
+                                                        alternative-text="Due Date">
+                                                    </lightning-icon>
+                                                    <template lwc:if={task.ActivityDate}>
+                                                        <span>Due: </span>
+                                                        <span class="slds-m-left_xx-small slds-text-color_default slds-truncate">
+                                                            <lightning-formatted-date-time
+                                                                value={task.ActivityDate}
+                                                                year="numeric"
+                                                                month="short"
+                                                                day="2-digit">
+                                                            </lightning-formatted-date-time>
+                                                        </span>
+                                                    </template>
+                                                    <template lwc:else>
+                                                        <span class="slds-text-color_weak slds-italic">No Due Date</span>
+                                                    </template>
+                                                </div>
+                                            </div>
+
+                                            <!-- Action Buttons -->
+                                            <div class="slds-col slds-size_1-1 slds-medium-size_2-12 slds-text-align_right">
+                                                <lightning-button-icon
+                                                    icon-name="utility:forward"
+                                                    alternative-text="Defer to Tomorrow"
+                                                    title="Defer to Tomorrow"
+                                                    variant="border-filled"
+                                                    size="small"
+                                                    data-id={task.Id}
+                                                    onclick={handleDeferTask}>
+                                                </lightning-button-icon>
+                                                <lightning-button-icon
+                                                    icon-name="utility:check"
+                                                    alternative-text="Complete Task"
+                                                    title="Complete Task"
+                                                    variant="border-filled"
+                                                    size="small"
+                                                    class="slds-m-left_xx-small"
+                                                    data-id={task.Id}
+                                                    onclick={handleCompleteTask}>
+                                                </lightning-button-icon>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </ul>
+                        </template>
+
+                        <!-- Empty State -->
+                        <template lwc:else>
+                            <div class="slds-p-around_medium slds-text-align_center slds-text-color_weak">
+                                <lightning-icon
+                                    icon-name="utility:info"
+                                    size="x-small"
+                                    variant="inverse"
+                                    class="slds-m-right_xx-small">
+                                </lightning-icon>
+                                <span class="slds-text-body_small">No {section.name} tasks</span>
+                            </div>
+                        </template>
+
+                    </lightning-accordion-section>
+                </template>
+
+            </lightning-accordion>
+        </div>
+    </lightning-card>
+</template>
