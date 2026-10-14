@@ -1,0 +1,19 @@
+.task-row {
+    transition: background-color 0.15s ease-in-out;
+    border-radius: 4px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.task-row:hover {
+    background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+}
+
+.task-subject {
+    font-weight: 500;
+}
+
+.task-subject:hover {
+    text-decoration: underline;
+    color: var(--slds-g-color-brand-base-50, #0176d3);
+}
